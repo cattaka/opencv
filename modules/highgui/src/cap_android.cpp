@@ -96,6 +96,8 @@ protected:
         noformat = 0,
         yuv420sp,
         yvu420sp,
+        yuv422sp,
+        yvu422sp,
         yuvUnknown
     };
 
@@ -132,6 +134,8 @@ private:
     void prepareCacheForYUV(int width, int height);
     bool convertYUV2Grey(int width, int height, const unsigned char* yuv, cv::Mat& resmat);
     bool convertYUV2BGR(int width, int height, const unsigned char* yuv, cv::Mat& resmat, bool inRGBorder, bool withAlpha);
+    bool convertYUYV2Grey(int width, int height, const unsigned char* yuv, cv::Mat& resmat);
+    bool convertYUYV2BGR(int width, int height, const unsigned char* yuv, cv::Mat& resmat, bool inRGBorder, bool withAlpha);
 
     friend class HighguiAndroidCameraActivity;
 };
@@ -408,6 +412,10 @@ IplImage* CvCapture_Android::retrieveFrame( int outputType )
                 m_frameFormat = yuv420sp;
             else if (0 == strcmp(u.name, "yvu420sp"))
                 m_frameFormat = yvu420sp;
+            else if (0 == strcmp(u.name, "yuv422sp"))
+                m_frameFormat = yuv422sp;
+            else if (0 == strcmp(u.name, "yvu422sp"))
+                m_frameFormat = yvu422sp;
             else
                 m_frameFormat = yuvUnknown;
         }
@@ -447,7 +455,30 @@ void CvCapture_Android::setFrame(const void* buffer, int bufferSize)
 {
     int width = m_activity->getFrameWidth();
     int height = m_activity->getFrameHeight();
-    int expectedSize = (width * height * 3) >> 1;
+
+    if (m_frameFormat == noformat)
+    {
+        union {double prop; const char* name;} u;
+        u.prop = getProperty(CV_CAP_PROP_PREVIEW_FORMAT);
+        if (0 == strcmp(u.name, "yuv420sp"))
+            m_frameFormat = yuv420sp;
+        else if (0 == strcmp(u.name, "yvu420sp"))
+            m_frameFormat = yvu420sp;
+        else if (0 == strcmp(u.name, "yuv422sp"))
+            m_frameFormat = yuv422sp;
+        else if (0 == strcmp(u.name, "yvu422sp"))
+            m_frameFormat = yvu422sp;
+        else
+            m_frameFormat = yuvUnknown;
+    }
+
+    int expectedSize = -1;
+    if (m_frameFormat == yuv420sp || m_frameFormat == yuv420sp) {
+        expectedSize =(width * height * 3) >> 1;
+    } else if (m_frameFormat == yuv422sp || m_frameFormat == yuv422sp) {
+        expectedSize =(width * height * 2);
+    }
+
 
     if ( expectedSize != bufferSize)
     {
@@ -490,8 +521,13 @@ void CvCapture_Android::prepareCacheForYUV(int width, int height)
         {
             delete[] tmp;
         }*/
-        m_frameYUV420.create(height * 3 / 2, width, CV_8UC1);
-        m_frameYUV420next.create(height * 3 / 2, width, CV_8UC1);
+        if (m_frameFormat == yuv420sp || m_frameFormat == yuv420sp) {
+            m_frameYUV420.create(height * 3 / 2, width, CV_8UC1);
+            m_frameYUV420next.create(height * 3 / 2, width, CV_8UC1);
+        } else if (m_frameFormat == yuv422sp || m_frameFormat == yuv422sp) {
+            m_frameYUV420.create(height, width, CV_8UC2);
+            m_frameYUV420next.create(height, width, CV_8UC2);
+        }
     }
 }
 
@@ -499,6 +535,21 @@ bool CvCapture_Android::convertYUV2Grey(int width, int height, const unsigned ch
 {
     if (yuv == 0) return false;
     if (m_frameFormat != yuv420sp && m_frameFormat != yvu420sp) return false;
+#define ALWAYS_COPY_GRAY 0
+#if ALWAYS_COPY_GRAY
+    resmat.create(height, width, CV_8UC1);
+    unsigned char* matBuff = resmat.ptr<unsigned char> (0);
+    memcpy(matBuff, yuv, width * height);
+#else
+    resmat = cv::Mat(height, width, CV_8UC1, (void*)yuv);
+#endif
+    return !resmat.empty();
+}
+
+bool CvCapture_Android::convertYUYV2Grey(int width, int height, const unsigned char* yuv, cv::Mat& resmat)
+{
+    if (yuv == 0) return false;
+    if (m_frameFormat != yuv422sp && m_frameFormat != yvu422sp) return false;
 #define ALWAYS_COPY_GRAY 0
 #if ALWAYS_COPY_GRAY
     resmat.create(height, width, CV_8UC1);
@@ -523,6 +574,23 @@ bool CvCapture_Android::convertYUV2BGR(int width, int height, const unsigned cha
         cv::cvtColor(src, resmat, inRGBorder ? CV_YUV420sp2RGB : CV_YUV420sp2BGR, withAlpha ? 4 : 3);
     else if (m_frameFormat == yvu420sp)
         cv::cvtColor(src, resmat, inRGBorder ? CV_YUV2RGB_NV21 : CV_YUV2BGR_NV12, withAlpha ? 4 : 3);
+
+    return !resmat.empty();
+}
+
+bool CvCapture_Android::convertYUYV2BGR(int width, int height, const unsigned char* yuv, cv::Mat& resmat, bool inRGBorder, bool withAlpha)
+{
+    if (yuv == 0) return false;
+    if (m_frameFormat != yuv422sp && m_frameFormat != yvu422sp) return false;
+
+    CV_Assert(width % 2 == 0 && height % 2 == 0);
+
+    cv::Mat src(height, width, CV_8UC2, (void*)yuv);
+
+    if (m_frameFormat == yuv422sp)
+        cv::cvtColor(src, resmat, inRGBorder ? CV_YUV2RGB_YUYV : CV_YUV2BGR_YUYV, withAlpha ? 4 : 3);
+    else if (m_frameFormat == yvu422sp)
+        cv::cvtColor(src, resmat, inRGBorder ? CV_YUV2RGB_YVYU : CV_YUV2BGR_YVYU, withAlpha ? 4 : 3);
 
     return !resmat.empty();
 }
