@@ -147,6 +147,14 @@ public:
         return (javaFeatureDetector*)((FeatureDetector*) detector);
     }
 
+    CV_WRAP static javaFeatureDetector* createOrb(int nfeatures, float scaleFactor, int nlevels, int edgeThreshold, int firstLevel, int WTA_K, int scoreType, int patchSize)
+    {
+        cv::ORB* orb = new cv::ORB(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
+        Ptr<FeatureDetector> detector(orb);
+        detector.addref();
+        return (javaFeatureDetector*)((FeatureDetector*) detector);
+    }
+
     CV_WRAP void write( const string& fileName ) const
     {
         FileStorage fs(fileName, FileStorage::WRITE);
@@ -332,6 +340,16 @@ public:
         extractor.addref();
         return (javaDescriptorExtractor*)((DescriptorExtractor*) extractor);
     }
+
+    CV_WRAP static javaDescriptorExtractor* createOrb(int nfeatures, float scaleFactor, int nlevels, int edgeThreshold, int firstLevel, int WTA_K, int scoreType, int patchSize)
+    {
+        cv::ORB* orb = new cv::ORB(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
+        Ptr<DescriptorExtractor> extractor(orb);
+        extractor.addref();
+        return (javaDescriptorExtractor*)((DescriptorExtractor*) extractor);
+    }
+
+
 
     CV_WRAP void write( const string& fileName ) const
     {
