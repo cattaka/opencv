@@ -420,31 +420,60 @@ IplImage* CvCapture_Android::retrieveFrame( int outputType )
                 m_frameFormat = yuvUnknown;
         }
 
-        switch(outputType)
-        {
-        case CV_CAP_ANDROID_GREY_FRAME:
-            if (!m_hasGray)
-                if (!(m_hasGray = convertYUV2Grey(m_width, m_height, current_frameYUV420, m_frameGray.mat)))
+        if (m_frameFormat == yuv420sp || m_frameFormat == yvu420sp) {
+            switch(outputType)
+            {
+            case CV_CAP_ANDROID_GREY_FRAME:
+                if (!m_hasGray)
+                    if (!(m_hasGray = convertYUV2Grey(m_width, m_height, current_frameYUV420, m_frameGray.mat)))
+                        return NULL;
+                image = m_frameGray.getIplImagePtr();
+                break;
+            case CV_CAP_ANDROID_COLOR_FRAME_BGR: case CV_CAP_ANDROID_COLOR_FRAME_RGB:
+                if (!m_hasColor)
+                    if (!(m_hasColor = convertYUV2BGR(m_width, m_height, current_frameYUV420, m_frameColor.mat, outputType == CV_CAP_ANDROID_COLOR_FRAME_RGB, false)))
                     return NULL;
-            image = m_frameGray.getIplImagePtr();
-            break;
-        case CV_CAP_ANDROID_COLOR_FRAME_BGR: case CV_CAP_ANDROID_COLOR_FRAME_RGB:
-            if (!m_hasColor)
-                if (!(m_hasColor = convertYUV2BGR(m_width, m_height, current_frameYUV420, m_frameColor.mat, outputType == CV_CAP_ANDROID_COLOR_FRAME_RGB, false)))
-                    return NULL;
-            image = m_frameColor.getIplImagePtr();
-            break;
-        case CV_CAP_ANDROID_COLOR_FRAME_BGRA: case CV_CAP_ANDROID_COLOR_FRAME_RGBA:
-            if (!m_hasColor)
-                if (!(m_hasColor = convertYUV2BGR(m_width, m_height, current_frameYUV420, m_frameColor.mat, outputType == CV_CAP_ANDROID_COLOR_FRAME_RGBA, true)))
-                    return NULL;
-            image = m_frameColor.getIplImagePtr();
-            break;
-        default:
-            LOGE("Unsupported frame output format: %d", outputType);
-            CV_Error( CV_StsOutOfRange, "Output frame format is not supported." );
-            image = NULL;
-            break;
+                image = m_frameColor.getIplImagePtr();
+                break;
+            case CV_CAP_ANDROID_COLOR_FRAME_BGRA: case CV_CAP_ANDROID_COLOR_FRAME_RGBA:
+                if (!m_hasColor)
+                    if (!(m_hasColor = convertYUV2BGR(m_width, m_height, current_frameYUV420, m_frameColor.mat, outputType == CV_CAP_ANDROID_COLOR_FRAME_RGBA, true)))
+                        return NULL;
+                image = m_frameColor.getIplImagePtr();
+                break;
+            default:
+                LOGE("Unsupported frame output format: %d", outputType);
+                CV_Error( CV_StsOutOfRange, "Output frame format is not supported." );
+                image = NULL;
+                break;
+            }
+        } else if (m_frameFormat == yuv422sp || m_frameFormat == yvu422sp) {
+            switch(outputType)
+            {
+            case CV_CAP_ANDROID_GREY_FRAME:
+                if (!m_hasGray)
+                    if (!(m_hasGray = convertYUYV2Grey(m_width, m_height, current_frameYUV420, m_frameGray.mat)))
+                        return NULL;
+                image = m_frameGray.getIplImagePtr();
+                break;
+            case CV_CAP_ANDROID_COLOR_FRAME_BGR: case CV_CAP_ANDROID_COLOR_FRAME_RGB:
+                if (!m_hasColor)
+                    if (!(m_hasColor = convertYUYV2BGR(m_width, m_height, current_frameYUV420, m_frameColor.mat, outputType == CV_CAP_ANDROID_COLOR_FRAME_RGB, false)))
+                        return NULL;
+                image = m_frameColor.getIplImagePtr();
+                break;
+            case CV_CAP_ANDROID_COLOR_FRAME_BGRA: case CV_CAP_ANDROID_COLOR_FRAME_RGBA:
+                if (!m_hasColor)
+                    if (!(m_hasColor = convertYUYV2BGR(m_width, m_height, current_frameYUV420, m_frameColor.mat, outputType == CV_CAP_ANDROID_COLOR_FRAME_RGBA, true)))
+                        return NULL;
+                image = m_frameColor.getIplImagePtr();
+                break;
+            default:
+                LOGE("Unsupported frame output format: %d", outputType);
+                CV_Error( CV_StsOutOfRange, "Output frame format is not supported." );
+                image = NULL;
+                break;
+            }
         }
     }
     return image;
